@@ -1,0 +1,31 @@
+name: Update NPB standings
+on:
+  schedule:
+    - cron: '0 21 * * *'   # 毎日 21:00 UTC = 翌06:00 JST（前日までの結果を反映）
+  workflow_dispatch:        # 手動実行も可
+permissions:
+  contents: write
+concurrency:
+  group: npb-update
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci || npm install
+      - run: node scrape.mjs
+      - name: Commit if changed
+        run: |
+          git config user.name "npb-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add current.json
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "update standings ($(TZ=Asia/Tokyo date +%Y-%m-%d))"
+            git push
+          fi
